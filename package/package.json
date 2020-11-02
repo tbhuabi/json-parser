@@ -1,0 +1,20 @@
+{
+  "name": "@tanbo/json-parser",
+  "version": "0.0.1",
+  "description": "A bezier library",
+  "main": "./bundles/public-api.js",
+  "module": "./bundles/public-api.js",
+  "typings": "./bundles/public-api.d.ts",
+  "license": "MIT",
+  "author": {
+    "name": "tanbo",
+    "email": "tanbohb@gmail.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tbhuabi/json-parser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tbhuabi/json-parser.git/issues"
+  }
+}
