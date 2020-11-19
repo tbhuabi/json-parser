@@ -1,24 +1,28 @@
 import { Lexer, Token, TokenType } from './lexer';
 
+/**
+ * 非标 JSON Parser 类，通过调用 Parser 类实例的 parse 方法，可以解析一段非标的 JSON 字符串
+ *
+ * Parser 类兼容标准的 JSON 字符串和 Javascript 对象和数组格式。即支持行注释和块注释、支持无引号的 key、单引号 key、双引号 key、
+ * 单引号字符串、双引号字符串，以及尾逗号。
+ */
 export class Parser {
   private tokens: Token[] = [];
   private index = 0;
+  private lexer = new Lexer();
 
-  constructor(private lexer: Lexer) {
-  }
-
-  parse(text: string) {
+  parse(text: string): any {
+    this.index = 0;
     this.tokens = this.lexer.lex(text);
-    return this.buildJSON();
+    switch (this.tokens[0].type) {
+      case TokenType.ObjectStart:
+        return this.buildJSON();
+      case TokenType.ArrayStart:
+        return this.buildArray();
+    }
   }
 
   private buildJSON() {
-    const start = this.tokens[this.index];
-
-    if (start.type !== TokenType.ObjectStart) {
-      throw new Error('内容不是以 { 开头！');
-    }
-
     this.index++;
 
     const json: { [key: string]: any } = {}
@@ -34,10 +38,6 @@ export class Parser {
       this.index++;
       json[key.text] = this.buildValue();
     }
-    const end = this.tokens[this.index];
-    if (end.type !== TokenType.ObjectEnd) {
-      throw new Error('内容不是以 } 结束！');
-    }
     this.index++;
     return json;
   }
@@ -52,18 +52,10 @@ export class Parser {
         return this.buildJSON();
       case TokenType.ArrayStart:
         return this.buildArray();
-      default:
-        throw new Error('错误的值！');
     }
   }
 
   private buildArray() {
-    const start = this.tokens[this.index];
-
-    if (start.type !== TokenType.ArrayStart) {
-      throw new Error('内容不是以 [ 开头！');
-    }
-
     this.index++;
 
     const arr: any[] = [];
@@ -77,10 +69,6 @@ export class Parser {
         break;
       }
       arr.push(this.buildValue());
-    }
-    const end = this.tokens[this.index];
-    if (end.type !== TokenType.ArrayEnd) {
-      throw new Error('内容不是以 ] 结束！');
     }
     this.index++;
     return arr;

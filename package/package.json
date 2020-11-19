@@ -1,6 +1,6 @@
 {
   "name": "@tanbo/json-parser",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "A bezier library",
   "main": "./bundles/public-api.js",
   "module": "./bundles/public-api.js",
@@ -12,9 +12,9 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tbhuabi/json-parser.git"
+    "url": "git+https://github.com/tbhuabi/textbus.git"
   },
   "bugs": {
-    "url": "https://github.com/tbhuabi/json-parser.git/issues"
+    "url": "https://github.com/tbhuabi/textbus.git/issues"
   }
 }

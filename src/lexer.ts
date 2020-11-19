@@ -9,7 +9,7 @@ export enum TokenType {
 
 export interface Token {
   text?: string;
-  value?: any;
+  value?: string | number | boolean;
   type: TokenType;
 }
 
@@ -29,7 +29,7 @@ export class Lexer {
 
   private text = '';
 
-  lex(text: string) {
+  lex(text: string): Token[] {
     this.text = text;
     this.tokens = [];
     this.index = 0;
@@ -49,43 +49,64 @@ export class Lexer {
       this.readArray();
       return;
     }
-    if (handleValue) {
-      if (ch === '"' || ch === "'") {
+    if (handleValue && this.readValue(ch)) {
+      return;
+    }
+    throw new Error('错误的格式！');
+  }
+
+  /* eslint-disable complexity */
+  private readValue(ch: string) {
+    if (ch === '"' || ch === "'") {
+      this.tokens.push({
+        type: TokenType.Constant,
+        value: this.readString(ch)
+      })
+      return true;
+    } else if (this.isNumber(ch) || ch === '-' && this.isNumber(this.peek(1))) {
+      const isNegative = ch === '-';
+      if (isNegative) {
+        this.index++;
         this.tokens.push({
           type: TokenType.Constant,
-          value: this.readString(ch)
+          value: -this.readNumber()
         })
-        return;
-      } else if (this.isNumber(ch) || ch === '.' && this.isNumber(this.peek(1))) {
+      } else {
         this.tokens.push({
           type: TokenType.Constant,
           value: this.readNumber()
         })
-        return;
-      } else if (this.expect('null') || this.expect('true')) {
-        const latter = this.peek(4);
-        if ([',', ']', '}'].includes(latter) || this.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(5))) {
-          this.tokens.push({
-            type: TokenType.Constant,
-            value: this.text.slice(this.index, this.index + 4) === 'null' ? null : true
-          })
-          this.index += 4;
-          return;
-        }
-      } else if (this.expect('false')) {
-        const latter = this.peek(5);
-        if ([',', ']', '}'].includes(latter) || this.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(6))) {
-          this.tokens.push({
-            type: TokenType.Constant,
-            value: false
-          })
-          this.index += 5;
-          return;
-        }
+      }
+      return true;
+    } else if (this.expect('null') || this.expect('true')) {
+      const latter = this.peek(4);
+      if ([',', ']', '}'].includes(latter) || this.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(5))) {
+        this.tokens.push({
+          type: TokenType.Constant,
+          value: this.text.slice(this.index, this.index + 4) === 'null' ? null : true
+        })
+        this.index += 4;
+        return true;
+      } else {
+        throw new Error('不正确的常量！')
+      }
+    } else if (this.expect('false')) {
+      const latter = this.peek(5);
+      if ([',', ']', '}'].includes(latter) || this.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(6))) {
+        this.tokens.push({
+          type: TokenType.Constant,
+          value: false
+        })
+        this.index += 5;
+        return true;
+      } else {
+        throw new Error('不正确的常量！')
       }
     }
-    throw new Error('错误的格式！');
+    return false;
   }
+
+  /* eslint-enable complexity */
 
   private readObject() {
     this.tokens.push({
@@ -95,39 +116,45 @@ export class Lexer {
     this.ignore();
     if (this.text.charAt(this.index) === '}') {
       this.index++;
-    } else {
-      while (this.index < this.text.length) {
-        this.ignore();
-        this.readKey();
-        this.ignore();
-        if (this.text.charAt(this.index) !== ':') {
-          throw new Error('JSON key 后必须为 : 号');
-        }
+      this.tokens.push({
+        type: TokenType.ObjectEnd
+      })
+      return;
+    }
+    while (this.index < this.text.length) {
+      this.ignore();
+      this.readKey();
+      this.ignore();
+      if (this.text.charAt(this.index) !== ':') {
+        throw new Error('JSON key 后必须为 : 号');
+      }
+      this.index++;
+      this.ignore();
+      this.run();
+      this.ignore();
+      const ch = this.text.charAt(this.index);
+      if (ch === '}') {
+        this.index++;
+        this.tokens.push({
+          type: TokenType.ObjectEnd
+        })
+        return;
+      }
+      if (ch === ',') {
         this.index++;
         this.ignore();
-        this.run();
-        this.ignore();
-        const ch = this.text.charAt(this.index);
-        if (ch === '}') {
+        if (this.text.charAt(this.index) === '}') {
           this.index++;
-          break;
+          this.tokens.push({
+            type: TokenType.ObjectEnd
+          })
+          return;
         }
-        if (ch === ',') {
-          this.index++;
-          this.ignore();
-          if (this.text.charAt(this.index) === '}') {
-            this.index++;
-            break;
-          }
-        } else {
-          throw new Error('JSON 没有正确结束！');
-        }
+      } else {
+        throw new Error('缺少逗号！')
       }
     }
-
-    this.tokens.push({
-      type: TokenType.ObjectEnd
-    })
+    throw new Error('JSON 没有正确结束！');
   }
 
   private readArray() {
@@ -138,32 +165,37 @@ export class Lexer {
     this.ignore();
     if (this.text.charAt(this.index) === ']') {
       this.index++;
-    } else {
-      while (this.index < this.text.length) {
+      this.tokens.push({
+        type: TokenType.ArrayEnd
+      })
+      return;
+    }
+    while (this.index < this.text.length) {
+      this.ignore();
+      this.run();
+      this.ignore();
+      const ch = this.text.charAt(this.index);
+      if (ch === ']') {
+        this.index++;
+        this.tokens.push({
+          type: TokenType.ArrayEnd
+        })
+        return;
+      } else if (ch === ',') {
+        this.index++;
         this.ignore();
-        this.run();
-        this.ignore();
-        const ch = this.text.charAt(this.index);
-        if (ch === ']') {
+        if (this.text.charAt(this.index) === ']') {
           this.index++;
-          break;
+          this.tokens.push({
+            type: TokenType.ArrayEnd
+          })
+          return;
         }
-        if (ch === ',') {
-          this.index++;
-          this.ignore();
-          if (this.text.charAt(this.index) === ']') {
-            this.index++;
-            break;
-          }
-        } else {
-          throw new Error('数组没有正确结束！');
-        }
+      } else {
+        throw new Error('缺少逗号！')
       }
     }
-
-    this.tokens.push({
-      type: TokenType.ArrayEnd
-    })
+    throw new Error('数组没有正确结束！');
   }
 
   private readKey() {
@@ -190,8 +222,10 @@ export class Lexer {
     }
   }
 
+  /* eslint-disable complexity */
   private readNumber() {
-    let value = '';
+    let value = this.text.charAt(this.index);
+    this.index++;
     let appearedDot = false;
     while (this.index < this.text.length) {
       //取当前的字符串，并且转小写，因为有可能是科学计数法，中间会有e;
@@ -231,13 +265,15 @@ export class Lexer {
     return Number(value);
   }
 
+  /* eslint-enable complexity */
+
   private readString(quote: string) {
     let value = '';
     // 是否有转义
     let escape = false;
     this.index++;
     while (this.index < this.text.length) {
-      let ch = this.text.charAt(this.index);
+      const ch = this.text.charAt(this.index);
       if (escape) {
         // 如果有转义
         if (ch === 'u') {
@@ -293,11 +329,9 @@ export class Lexer {
   private skipBlockComment() {
     while (this.index < this.text.length) {
       const ch = this.text.charAt(this.index);
-      if (ch === '*') {
-        if (this.peek() === '/') {
-          this.index += 2;
-          break;
-        }
+      if (ch === '*' && this.peek() === '/') {
+        this.index += 2;
+        break;
       }
       this.index++;
     }
@@ -334,6 +368,6 @@ export class Lexer {
   }
 
   private isEmpty(ch: string) {
-    return [' ', '\n', '\t', '\n', '\v', '\u00A0'].indexOf(ch) > -1;
+    return [' ', '\n', '\t', '\v', '\u00A0'].indexOf(ch) > -1;
   }
 }
