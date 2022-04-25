@@ -1,20 +1,24 @@
 {
   "name": "@tanbo/json-parser",
-  "version": "1.0.0",
-  "description": "A bezier library",
-  "main": "./bundles/public-api.js",
-  "module": "./bundles/public-api.js",
-  "typings": "./bundles/public-api.d.ts",
+  "version": "0.0.1",
+  "main": "./bundles/commonjs/public-api.js",
+  "module": "./bundles/esm/public-api.js",
+  "types": "./bundles/esm/public-api.d.ts",
+  "description": "A nonstandard JSON parser.",
   "license": "MIT",
   "author": {
     "name": "tanbo",
     "email": "tanbohb@gmail.com"
   },
+  "keywords": [
+    "json parser",
+    "nonstandard json"
+  ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/tbhuabi/textbus.git"
+    "url": "git+https://github.com/tbhuabi/json-parser.git"
   },
   "bugs": {
-    "url": "https://github.com/tbhuabi/textbus.git/issues"
+    "url": "https://github.com/tbhuabi/json-parser.git/issues"
   }
 }

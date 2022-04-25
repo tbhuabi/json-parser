@@ -23,6 +23,17 @@ const ESCAPE = {
   '"': '"'
 };
 
+function makeError(name: string) {
+  return function jsonParserError(message: string) {
+    const error = new Error(message)
+    error.name = `[JSONParser: ${name}]`
+    error.stack = error.stack!.replace(/\n.*?(?=\n)/, '')
+    return error
+  }
+}
+
+const jsonParserErrorFn = makeError('Lexer')
+
 export class Lexer {
   private tokens: Token[] = [];
   private index = 0;
@@ -52,10 +63,9 @@ export class Lexer {
     if (handleValue && this.readValue(ch)) {
       return;
     }
-    throw new Error('错误的格式！');
+    throw jsonParserErrorFn('json string must start with `{` or `[`.')
   }
 
-  /* eslint-disable complexity */
   private readValue(ch: string) {
     if (ch === '"' || ch === "'") {
       this.tokens.push({
@@ -63,7 +73,7 @@ export class Lexer {
         value: this.readString(ch)
       })
       return true;
-    } else if (this.isNumber(ch) || ch === '-' && this.isNumber(this.peek(1))) {
+    } else if (Lexer.isNumber(ch) || ch === '-' && Lexer.isNumber(this.peek(1))) {
       const isNegative = ch === '-';
       if (isNegative) {
         this.index++;
@@ -80,7 +90,7 @@ export class Lexer {
       return true;
     } else if (this.expect('null') || this.expect('true')) {
       const latter = this.peek(4);
-      if ([',', ']', '}'].includes(latter) || this.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(5))) {
+      if ([',', ']', '}'].includes(latter) || Lexer.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(5))) {
         this.tokens.push({
           type: TokenType.Constant,
           value: this.text.slice(this.index, this.index + 4) === 'null' ? null : true
@@ -88,11 +98,11 @@ export class Lexer {
         this.index += 4;
         return true;
       } else {
-        throw new Error('不正确的常量！')
+        throw jsonParserErrorFn('incorrect constant.')
       }
     } else if (this.expect('false')) {
       const latter = this.peek(5);
-      if ([',', ']', '}'].includes(latter) || this.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(6))) {
+      if ([',', ']', '}'].includes(latter) || Lexer.isEmpty(latter) || ['//', '/*'].includes(latter + this.peek(6))) {
         this.tokens.push({
           type: TokenType.Constant,
           value: false
@@ -100,7 +110,7 @@ export class Lexer {
         this.index += 5;
         return true;
       } else {
-        throw new Error('不正确的常量！')
+        throw jsonParserErrorFn('incorrect constant.')
       }
     }
     return false;
@@ -126,7 +136,7 @@ export class Lexer {
       this.readKey();
       this.ignore();
       if (this.text.charAt(this.index) !== ':') {
-        throw new Error('JSON key 后必须为 : 号');
+        throw jsonParserErrorFn('property must be followed by `:`.')
       }
       this.index++;
       this.ignore();
@@ -151,10 +161,10 @@ export class Lexer {
           return;
         }
       } else {
-        throw new Error('缺少逗号！')
+        throw jsonParserErrorFn('missing comma `,`.')
       }
     }
-    throw new Error('JSON 没有正确结束！');
+    throw jsonParserErrorFn('JSON did not end correctly.');
   }
 
   private readArray() {
@@ -192,10 +202,10 @@ export class Lexer {
           return;
         }
       } else {
-        throw new Error('缺少逗号！')
+        throw jsonParserErrorFn('missing comma `,`.')
       }
     }
-    throw new Error('数组没有正确结束！');
+    throw jsonParserErrorFn('Array did not end correctly.');
   }
 
   private readKey() {
@@ -210,7 +220,7 @@ export class Lexer {
       while (this.index < this.text.length) {
         const next = this.peek();
         this.index++;
-        if (next === ':' || this.isEmpty(next)) {
+        if (next === ':' || Lexer.isEmpty(next)) {
           break;
         }
         key += next;
@@ -232,30 +242,30 @@ export class Lexer {
       const ch = this.text.charAt(this.index).toLowerCase();
       if (ch === '.') {
         //如果是以小数点开头，
-        if (!this.isNumber(this.peek())) {
-          throw new Error(`解析数字${value}出错，.后面不能为${this.peek()}！`);
+        if (!Lexer.isNumber(this.peek())) {
+          throw jsonParserErrorFn(`Error parsing number \`${value}\`, \`.\` cannot be followed by \`${this.peek()}\`.`);
         }
         if (appearedDot) {
-          throw new Error(`解析数字${value}出错，后面不能为.！`);
+          throw jsonParserErrorFn(`Error parsing number \`${value}\`, cannot be followed by \`.\`.`);
         }
         value += ch;
         appearedDot = true;
-      } else if (this.isNumber(ch)) {
+      } else if (Lexer.isNumber(ch)) {
         value += ch;
       } else {
         const nextText = this.peek();
-        if (ch === 'e' && this.isExpOperator(nextText)) {
+        if (ch === 'e' && Lexer.isExpOperator(nextText)) {
           //如果当前为e,并且后面一位是数字或+-号，则断定为科学计数法
           value += ch;
-        } else if (this.isExpOperator(ch) && nextText && this.isNumber(nextText) && value.charAt(value.length - 1) === 'e') {
+        } else if (Lexer.isExpOperator(ch) && nextText && Lexer.isNumber(nextText) && value.charAt(value.length - 1) === 'e') {
           // 如果当前是 +- 号，并且有下一位，且下一位是数字，并且当前值的最后一位是 e，则断定为正确的科学计数法
           // 这里只能是 +- 号，因为数字会走前面的分支
           value += ch;
-        } else if (this.isExpOperator(ch) && (!nextText || !this.isNumber(nextText)) && value.charAt(value.length - 1) === 'e') {
+        } else if (Lexer.isExpOperator(ch) && (!nextText || !Lexer.isNumber(nextText)) && value.charAt(value.length - 1) === 'e') {
           // 如果当前是 +- 号，
           // 并且没有下一位，或者且下一位不是数字，并且当前值的最后一位是 e，则断定数字解析出错
           // 这里只能是 +- 号，因为数字会走前面的分支
-          throw new Error(`${value}${ch}不是一个正确的数字！`)
+          throw jsonParserErrorFn(`\`${value}${ch}\` is not a correct number.`)
         } else {
           break;
         }
@@ -285,7 +295,7 @@ export class Lexer {
             // 加 4 是因为后面的 this.index++
             this.index += 4;
           } else {
-            throw new Error(`转义 ${hexCode} 失败，或者 ${hexCode} 不是一个合法的 unicode 字符`);
+            throw jsonParserErrorFn(`Escaping \`${hexCode}\` failed, or \`${hexCode}\` is not a legal Unicode character.`);
           }
         } else {
           value += ESCAPE[ch] || ch;
@@ -340,7 +350,7 @@ export class Lexer {
   private ignore() {
     while (this.index < this.text.length) {
       const ch = this.text.charAt(this.index);
-      if (this.isEmpty(ch)) {
+      if (Lexer.isEmpty(ch)) {
         this.index++;
       } else if (ch === '/') {
         if (this.expect('//')) {
@@ -350,7 +360,7 @@ export class Lexer {
           this.index += 2;
           this.skipBlockComment();
         } else {
-          throw new Error(`不兼容的 JSON 格式 \`${this.text.substring(this.index)}\``);
+          throw new Error(`incompatible JSON format \`${this.text.substring(this.index)}\`.`);
         }
       } else {
         break;
@@ -358,16 +368,16 @@ export class Lexer {
     }
   }
 
-  private isExpOperator(text: string) {
+  private static isExpOperator(text: string) {
     // 主要用于校验科学计数法e后面的内容
-    return text === '+' || text === '-' || this.isNumber(text);
+    return text === '+' || text === '-' || Lexer.isNumber(text);
   }
 
-  private isNumber(ch: string) {
+  private static isNumber(ch: string) {
     return typeof ch === 'string' && ch >= '0' && ch <= '9';
   }
 
-  private isEmpty(ch: string) {
+  private static isEmpty(ch: string) {
     return [' ', '\n', '\t', '\v', '\u00A0'].indexOf(ch) > -1;
   }
 }

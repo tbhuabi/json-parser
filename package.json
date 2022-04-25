@@ -1,19 +1,24 @@
 {
   "name": "@tanbo/json-parser",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.0.1",
+  "description": "A nonstandard JSON parser.",
   "main": "index.js",
   "scripts": {
     "start": "webpack-dev-server",
     "lint": "eslint ./src --ext .ts",
     "test": "cross-env env=test jest",
     "test-c": "cross-env env=test jest --coverage",
-    "build:lib": "rimraf package/bundles && tsc -p tsconfig-build.json",
-    "publish:lib": "npm run build:lib && cd package && npm publish"
+    "build:lib": "rimraf package/bundles && tsc -p tsconfig-build.json && tsc -p tsconfig-build-umd.json",
+    "publish:lib": "npm run build:lib && cd package && npm publish --access public"
   },
-  "author": "",
+  "author": "tanbo",
   "license": "MIT",
+  "keywords": [
+    "json parser",
+    "nonstandard json"
+  ],
   "devDependencies": {
+    "@types/jest": "^26.0.23",
     "@typescript-eslint/eslint-plugin": "^4.6.1",
     "@typescript-eslint/parser": "^4.6.1",
     "babel-jest": "^26.6.1",
@@ -29,5 +34,12 @@
     "webpack": "^4.44.2",
     "webpack-cli": "^3.3.12",
     "webpack-dev-server": "^3.11.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tbhuabi/json-parser.git"
+  },
+  "bugs": {
+    "url": "https://github.com/tbhuabi/json-parser.git/issues"
   }
 }

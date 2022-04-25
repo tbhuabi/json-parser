@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "declaration": false,
+    "declaration": true,
     "target": "es6",
-    "module": "commonjs",
+    "module": "es6",
     "moduleResolution": "node",
     "sourceMap": false,
     "emitDecoratorMetadata": true,
@@ -16,7 +16,7 @@
     "downlevelIteration": true,
     "esModuleInterop": true,
     "baseUrl": "./",
-    "outDir": "package/bundles/",
+    "outDir": "package/bundles/esm",
     "paths": {
       "@tanbo/json-parser": [
         "src/public-api.ts"
